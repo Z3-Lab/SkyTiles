@@ -23,7 +23,7 @@ def main():
         "--add-data", f"{ROOT / 'dist'}{os.pathsep}web", "--collect-submodules", "uvicorn",
         str(ROOT / "launcher.py"),
     ], cwd=ROOT, check=True, env=build_env)
-    shutil.copyfile(ROOT / "README.md", ROOT / "release" / "使用说明.md")
+    shutil.copyfile(ROOT / "docs" / "GUIDE.md", ROOT / "release" / "使用说明.md")
     shutil.copyfile(ROOT / "LICENSE", ROOT / "release" / "LICENSE")
     print(f"EXE: {ROOT / 'release' / 'SkyTiles.exe'}")
 

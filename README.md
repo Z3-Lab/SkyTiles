@@ -1,156 +1,26 @@
-# SkyTiles · 司图
+<p align="center">
+  <img src="docs/assets/skytiles-logo.svg" width="76" alt="司图图标">
+</p>
 
-本地无人机航测影像管理与三维浏览工具。Vue 3 + TypeScript + Cesium 前端，Python FastAPI 本地服务，SQLite 持久存储。支持照片可视化导入、旧版 JSON 索引迁移和 Windows 单文件 EXE。
+<h1 align="center">SkyTiles · 司图</h1>
 
-## 下载并运行（Windows 10/11，64 位）
+<p align="center">在三维地球上浏览、定位和管理本地航测影像。</p>
 
-**[下载 SkyTiles.exe](https://github.com/Z3-Lab/SkyTiles/releases/latest/download/SkyTiles.exe)** · [查看最新发布](https://github.com/Z3-Lab/SkyTiles/releases/latest)
+<p align="center"><strong>简体中文</strong> · <a href="README.en.md">English</a></p>
 
-1. 将下载的 `SkyTiles.exe` 放在有写入权限的目录中。
-2. 双击运行，程序会启动本地服务并打开默认浏览器，无需安装 Node.js 或 Python。
-3. 点击右上角「导入影像」，通过系统窗口选择本机照片或文件夹，也可填写原图文件夹的完整路径。只建立路径索引，不复制原图。
-4. 点击点位或照片列表查看原图，点击定位按钮在地图中定位。
-5. 使用界面右上角「退出」停止服务。单纯关闭浏览器标签不会停止服务；再次双击 EXE 会重新打开已有实例。
+<p align="center">
+  <strong><a href="https://github.com/Z3-Lab/SkyTiles/releases/latest/download/SkyTiles.exe">下载 SkyTiles.exe</a></strong>
+  · <a href="https://github.com/Z3-Lab/SkyTiles/releases/latest">查看最新发布</a>
+  <br>
+  Windows 10/11 · 64 位
+</p>
 
-默认地址为 `http://127.0.0.1:8765`；端口被占用时自动选择空闲端口。服务仅监听本机。每个影像库只能由一个程序实例打开。
+## 开始使用
 
-程序会在 EXE **旁边**创建 `data/`，不会把用户数据写入 EXE 解压临时目录：
+下载后双击 `SkyTiles.exe`，司图会在默认浏览器中打开。点击「导入影像」，选择照片或文件夹。
 
-```text
-SkyTiles.exe
-data/
-  skytiles.sqlite3       照片元数据、导入与导出记录、处理提示
-  config.json            可选的 Cesium Token
-  media/                 兼容旧版原图副本；新版导入不再写入
-  thumbs/                最长边 128 像素的低质量 WebP 缩略图，约数百字节至 4 KB
-  staging/               兼容旧版临时目录；新版照片不上传、不暂存
-  logs/                  本地运行日志
-```
+- **地图浏览** · 读取照片的 EXIF 坐标，在三维地球上查看拍摄位置和原图。
+- **本地管理** · 搜索影像、筛选缺失定位的照片。原图留在原处，司图只建立索引并生成缩略图。
+- **框选导出** · 在地图上框选拍摄点，将所选原图批量复制到新文件夹。
 
-**升级时只替换 EXE，保留整个 `data/`。移动程序时一起移动 `data/`。备份前先从界面退出程序，再复制整个 `data/`。不要只复制正在运行中的 SQLite 主文件，WAL 中可能还有未合并的数据。**
-
-**原图留在原位置，预览与批量导出直接读取原路径。索引及缩略图不等于原图备份，请另行备份原图目录；原图移动、删除或移动硬盘离线时，原图预览和导出将不可用。重新选择新目录导入可更新索引路径。**
-
-已有旧版图库会继续兼容原图副本，启动后自动在后台压缩旧缩略图。要释放旧版原图副本，请在「导入影像」中重新选择原图目录；程序会读取并校验照片内容，更新原图路径后再回收对应旧副本。没有找到外部原图的旧副本保留，避免失去唯一的原图。可在「设置」查看尚未关联的旧副本数量、在「导入记录」查看缩略图压缩进度。
-
-源码运行时默认使用项目根目录的 `data/`。可使用 `--data-dir "D:\SkyTilesData"` 或环境变量 `SKYTILES_DATA_DIR` 指定其他位置；不要把共享数据库放在网络盘上供多台机器直接打开。
-
-## 从旧版 JSON 迁移
-
-打开「导入影像 → 旧版 JSON 迁移」：
-
-1. 选择旧版 `public/img-index/index.json`。
-2. 填入旧项目根目录或其 `public` 目录的本机完整路径，例如 `D:\旧版SkyTiles\public`。该目录下应有 `imgs/`，可同时包含 `thumbs/`。
-3. 点击「迁移到 SQLite」。
-
-兼容原来的 Python 和 Node 索引格式，优先使用 `relativePath`，也支持 `/imgs/...` 形式的 `imageUrl`。旧记录的坐标、高程和拍摄时间直接入库，不重新提取原图 EXIF；旧 ID 不作为新版数据库主键。
-
-- 找到的原图只记录其绝对路径，不复制到 `data/media/`；旧缩略图或原图会生成极小 WebP 预览图。
-- 找不到原图时仍保留照片元数据和地图点位，标记「原图缺失」。JSON 不包含原图本身。
-- 之后选择正确的旧目录再次迁移，可以补齐原图，不重复添加记录。也可导入相同相对路径的原图补齐唯一匹配的缺失记录。
-- 相同文件内容通过 SHA-256 去重；同名但内容不同的文件不会仅因文件名相同而被跳过。
-- 单条记录无效不会阻止其他记录入库；导入记录显示成功、重复/补齐、无 GPS、缺图、失败数量，以及前 100 条处理提示。
-- 旧路径必须位于选择的目录内；不会访问 JSON 指向的任意网络 URL。
-
-建议迁移前保留旧数据备份。迁移完成并核对结果前，不必删除旧版目录。
-
-## 框选与批量导出
-
-1. 在地图上点击「框选影像」，按住鼠标左键拖出矩形。选中的照片点位会高亮为黄色，并显示选中数量。
-2. 普通框选替换当前选择；按住 **Shift** 拖动可追加选择。**Esc** 取消正在进行的框选。「清除选择」取消全部已选照片。
-3. 在地图中右键，选择「批量导出所选」，也可点击地图顶部「导出所选」。
-4. 点击「选择文件夹」打开 Windows 文件夹窗口，或填写目标位置的完整路径；输入新文件夹名称，然后点击「复制到新文件夹」。
-
-导出会在目标位置创建独立的新文件夹，按照片原有的相对目录复制原图，保留原始内容和 EXIF，不移动来源文件。同名文件夹、同名文件自动编号，不覆盖已有导出；不允许导出到影像库 `data/` 内。完成后显示实际保存位置、复制成功、原图缺失和失败数量。目标文件夹中的 `导出报告.json` 记录每张照片的结果。
-
-框选遵循当前搜索和筛选条件，按画面中的实际照片位置选择；聚合显示时仍会查询聚合内的原始点位，地球背面的点位不会选中。无 GPS 的照片不出现在地图中，无法通过地图框选。单次最多选择 100,000 张。
-
-导出在后台逐张复制，可在右上角「导出记录」查看进度和结果。复制期间请保持程序运行；为保证文件完整性，此时禁止移除影像、清空和从界面退出。异常退出后保留已完成的文件，记录标记为「已中断」，可重新框选导出到新文件夹。清空影像库会清除导出记录，但保留目标位置的导出文件。
-
-## 移除影像与清空影像库
-
-- 左侧每张照片右侧、定位按钮旁有移除按钮。确认后删除该照片的记录、图库中的原图副本和缩略图，并刷新列表、统计与地图。
-- 在「设置 → 清空影像库」可删除整个影像库的全部照片、原图副本、缩略图、导入与导出记录及临时上传文件。已导出的文件保留。该操作不受左侧搜索或筛选条件影响，需输入「清空」并再次确认。
-- 两种操作都不可撤销；需要保留影像库时请先退出程序并备份整个 `data/`。导入来源目录中的文件，以及 Cesium Token 等设置不会被删除。
-- 上传、导入或导出任务进行中禁止移除、清空。若文件被 Windows 占用，照片记录仍会移除，界面会提示尚有文件待清理；下次启动会重试清理。
-
-## 地图与性能
-
-- 照片列表每页 40 张，支持文件名/相对路径搜索和有 GPS、无 GPS、原图缺失筛选。
-- 地图按相机三维视锥与照片实际高程查询点位，低角度下也保留画面内的近处航照点；框选使用相同的三维范围。当前视野超过 3000 张时使用网格聚合，聚合位置保留平均高程，点击聚合点继续放大。
-- Cesium 使用 `PointPrimitiveCollection` 绘制点位，场景空闲时按需渲染。
-- 缩略图按需加载；原图仅在预览时加载。
-- 导入使用单个后台工作线程，扫描原图路径并显示索引进度，不传输或暂存照片内容。SQLite 使用 WAL 模式。
-- 导入失败会保留已经完成的记录；程序中断后再次导入可去重。尚未完成的临时上传在下次启动时清理。
-
-不配置 Token 时使用随程序打包的 Natural Earth 基础地球，可以离线查看影像和点位。需要在线卫星底图、在线地形时，在「设置」中填写自己的 Cesium ion Access Token。也可通过 `SKYTILES_CESIUM_TOKEN` 环境变量提供；环境变量优先于界面配置。在线服务需要网络，并受对应账号权限限制。
-
-## 开发环境
-
-要求：Windows、Python 3.12+、Node.js `^20.19.0 || >=22.12.0`。
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements-dev.lock.txt
-npm ci
-```
-
-后端开发（终端 1）：
-
-```powershell
-.\.venv\Scripts\python.exe launcher.py --dev --no-browser
-```
-
-前端开发（终端 2）：
-
-```powershell
-npm run dev
-```
-
-访问 `http://127.0.0.1:5173`，Vite 会将 `/api` 代理至本机 8765 端口。后端开发模式会开放 `/api/docs`；修改 Python 代码后需要重启后端。
-
-本地生产模式：
-
-```powershell
-npm run build
-.\.venv\Scripts\python.exe launcher.py
-```
-
-## 检查
-
-```powershell
-npm run build
-npm run lint
-.\.venv\Scripts\python.exe -m unittest discover -s tests -v
-```
-
-后端测试覆盖 EXIF、无 GPS、损坏图片、内容去重、旧 JSON 两种格式、缺图补齐、坐标/路径验证、分页、地图聚合和中断任务恢复。
-
-## 项目结构
-
-```text
-backend/
-  app.py                 API、分页筛选、地图聚合、图片访问
-  database.py            SQLite 表、索引、连接与任务统计
-  imports.py             后台导入、迁移与内容去重
-  images.py              EXIF、路径验证、文件哈希与缩略图
-  config.py              运行与打包后的路径配置
-src/
-  App.vue                图库与应用界面
-  components/
-    GlobeView.vue        Cesium 地图
-    ImportDialog.vue     照片导入、JSON 迁移、导入记录
-    PhotoPreview.vue     原图预览
-  api.ts                 API 客户端与本机路径选择
-  types.ts               前端数据类型
-launcher.py              源码与 EXE 共用启动入口
-tests/test_app.py
-```
-
-原来的双索引脚本、示例 counter store、无业务作用的 Pinia/路由和前端硬编码 Token 已清理。`public/` 可作为旧版迁移数据的存放处，构建过程不会复制它。
-
-## 当前边界
-
-面向本机个人使用，无多用户权限系统。照片支持 JPG、JPEG、PNG、WebP，按本机原路径索引；旧 JSON 索引最大 128 MB。JSON 上传解析可能产生临时文件，完成后释放，不长期保存索引文件副本。新照片缺少 GPS 时仍入库，但不会显示地图点位。EXIF 未提供时区时保留其原始本地时间，不擅自标记为 UTC；旧 JSON 的时间按其中记录保留。
-
-许可证：[Apache License 2.0](LICENSE)。
+[使用手册与开发说明](docs/GUIDE.md) · [反馈问题](https://github.com/Z3-Lab/SkyTiles/issues) · [Apache 2.0](LICENSE)

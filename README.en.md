@@ -1,43 +1,26 @@
-# SkyTiles
+<p align="center">
+  <img src="docs/assets/skytiles-logo.svg" width="76" alt="SkyTiles logo">
+</p>
 
-A local drone-photo library and Cesium globe viewer. Built with Vue 3, TypeScript, FastAPI, SQLite and Pillow; distributed as a standalone Windows executable.
+<h1 align="center">SkyTiles · 司图</h1>
 
-See the [Chinese guide](README.md) for complete instructions.
+<p align="center">Browse, locate, and organize local drone photos on a 3D globe.</p>
 
-## Download and run (Windows 10/11, 64-bit)
+<p align="center"><a href="README.md">简体中文</a> · <strong>English</strong></p>
 
-**[Download SkyTiles.exe](https://github.com/Z3-Lab/SkyTiles/releases/latest/download/SkyTiles.exe)** · [View the latest release](https://github.com/Z3-Lab/SkyTiles/releases/latest)
+<p align="center">
+  <strong><a href="https://github.com/Z3-Lab/SkyTiles/releases/latest/download/SkyTiles.exe">Download SkyTiles.exe</a></strong>
+  · <a href="https://github.com/Z3-Lab/SkyTiles/releases/latest">View the latest release</a>
+  <br>
+  Windows 10/11 · 64-bit
+</p>
 
-Save `SkyTiles.exe` in a writable folder and double-click it. The app opens in your default browser and runs locally. It includes everything it needs, so you can use it without installing Python or Node.js. Import photos or folders through the app, or migrate an existing `public/img-index/index.json` and its old `public` directory.
+## Get started
 
-The photo index, thumbnails and settings are stored in `data/` beside the executable. Original photos stay in their existing folders. **When upgrading, replace the EXE and keep the entire data directory. Quit the service before backing it up.** Closing a browser tab does not stop the service; use the Exit button. The service defaults to port 8765 and selects an available port when necessary.
+Double-click the downloaded `SkyTiles.exe` to open SkyTiles in your default browser. Choose **Import Photos** to select photos or a folder.
 
-Legacy migration preserves coordinates, altitude and timestamps without reparsing EXIF. Migration indexes originals in place. Missing originals remain in the index and can be reconnected by repeating migration with the correct directory. Content hashes prevent duplicate photos.
+- **Explore by location** · Read EXIF coordinates and view shooting locations and original photos on the globe.
+- **Manage photos locally** · Search and filter photos, including those without GPS. SkyTiles makes an index and thumbnails while leaving originals in place.
+- **Export a map selection** · Draw a box around shooting locations and copy the selected originals to a new folder.
 
-The bundled basic globe works offline. Configure your Cesium ion token in Settings for online satellite imagery and terrain.
-
-## Development
-
-Requires Windows, Python 3.12+, Node.js `^20.19.0 || >=22.12.0`.
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements-dev.lock.txt
-npm ci
-```
-
-Run the backend with `.\.venv\Scripts\python.exe launcher.py --dev --no-browser`, then run `npm run dev` in another terminal. Open `http://127.0.0.1:5173`.
-
-For a production source run, execute `npm run build`, then `.\.venv\Scripts\python.exe launcher.py`.
-
-## Build and test
-
-```powershell
-npm run build
-npm run lint
-.\.venv\Scripts\python.exe -m unittest discover -s tests -v
-```
-
-The library uses paginated lists, viewport-based map queries, grid clustering above 3000 visible locations, on-demand rendering, a bounded import worker and SQLite WAL. This release is designed for local personal use, without multi-user authentication.
-
-Licensed under [Apache 2.0](LICENSE).
+[User and developer guide](docs/GUIDE.en.md) · [Report an issue](https://github.com/Z3-Lab/SkyTiles/issues) · [Apache 2.0](LICENSE)

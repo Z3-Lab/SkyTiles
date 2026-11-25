@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 88 96" role="img" aria-labelledby="title">
+  <title id="title">SkyTiles</title>
+  <path fill="#50dfc1" d="M44 0 88 24v48L44 96 0 72V24z"/>
+  <text x="44" y="66" text-anchor="middle" font-family="system-ui, sans-serif" font-size="58" font-weight="700" fill="#093c39">S</text>
+</svg>
