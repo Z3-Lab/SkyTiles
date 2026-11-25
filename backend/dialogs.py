@@ -1,6 +1,10 @@
-"""Native Windows dialogs for the browser-based desktop application."""
+"""Local file and folder pickers for the desktop application."""
+import json
 import logging
 import os
+import shlex
+import subprocess
+import sys
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -19,16 +23,90 @@ def choose_files(initial_directory=''):
 
 
 def _choose(initial_directory, files):
-    if os.name != 'nt':
-        raise LibraryError('当前系统请直接填写目标文件夹的完整路径', 422)
     try:
-        # HTTP worker threads can be reused with a different COM apartment.
-        # Each dialog owns its STA thread, HWND, COM lifetime and message loop.
-        with ThreadPoolExecutor(max_workers=1, thread_name_prefix='folder-dialog') as executor:
-            return executor.submit(_choose_windows_directory, initial_directory, files).result()
-    except OSError as error:
-        logger.exception('Could not open the folder dialog')
-        raise LibraryError(f'无法打开系统文件夹窗口：{error}。可直接填写完整路径。', 422) from error
+        if sys.platform == 'win32':
+            # Use a dedicated STA thread for each COM dialog.
+            with ThreadPoolExecutor(max_workers=1, thread_name_prefix='folder-dialog') as executor:
+                return executor.submit(_choose_windows_directory, initial_directory, files).result()
+        initial = _initial_folder(initial_directory)
+        if sys.platform == 'darwin':
+            return _choose_macos(initial, files)
+        if sys.platform.startswith('linux'):
+            return _choose_linux(initial, files)
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        logger.exception('Could not open the local file picker')
+        raise LibraryError('无法打开文件选择窗口。可直接填写文件夹的完整路径。', 422) from error
+    raise LibraryError('当前系统请直接填写文件夹的完整路径。', 422)
+
+
+def _initial_folder(value):
+    if not value.strip() or '\x00' in value:
+        return Path.home()
+    initial = Path(value).expanduser()
+    if not initial.is_absolute():
+        return Path.home()
+    while not initial.is_dir() and initial != initial.parent:
+        initial = initial.parent
+    return initial
+
+
+def _macos_picker_script(files):
+    prompt = '"SkyTiles · 选择导入照片"' if files else '"SkyTiles · 选择文件夹"'
+    command = 'choose file' if files else 'choose folder'
+    options = ' with multiple selections allowed' if files else ''
+    selection = 'picked' if files else '{picked}'
+    return f'''on run argv
+    set initialFolder to (POSIX file (item 1 of argv)) as alias
+    try
+        set picked to {command} with prompt {prompt} default location initialFolder{options}
+    on error number -128
+        return ""
+    end try
+    set paths to {{}}
+    repeat with entry in {selection}
+        set end of paths to quoted form of (POSIX path of (contents of entry))
+    end repeat
+    set AppleScript's text item delimiters to " "
+    return paths as text
+end run
+'''
+
+
+def _choose_macos(initial, files):
+    result = subprocess.run(('/usr/bin/osascript', '-', str(initial)),
+                            input=_macos_picker_script(files), encoding='utf-8',
+                            capture_output=True, check=True)
+    paths = shlex.split(result.stdout)
+    return (paths if files else paths[0]) if paths else None
+
+
+def _choose_linux(initial, files):
+    if getattr(sys, 'frozen', False):
+        command = [sys.executable]
+    else:
+        command = [sys.executable, str(Path(__file__).resolve().parents[1] / 'launcher.py')]
+    command.extend(('--picker', 'files' if files else 'folder', '--initial-directory', str(initial)))
+    result = subprocess.run(command, encoding='utf-8', capture_output=True, check=True)
+    return json.loads(result.stdout)
+
+
+def linux_picker(initial_directory, files):
+    # Tk owns the main thread in this short-lived picker process.
+    import tkinter as tk
+    from tkinter import filedialog
+
+    window = tk.Tk()
+    window.withdraw()
+    try:
+        if files:
+            patterns = ('*.jpg', '*.jpeg', '*.png', '*.webp', '*.JPG', '*.JPEG', '*.PNG', '*.WEBP')
+            picked = filedialog.askopenfilenames(parent=window, initialdir=initial_directory,
+                title='SkyTiles · 选择导入照片', filetypes=[('照片', patterns), ('所有文件', '*')])
+            return list(picked) or None
+        return filedialog.askdirectory(parent=window, initialdir=initial_directory,
+            title='SkyTiles · 选择文件夹', mustexist=True) or None
+    finally:
+        window.destroy()
 
 
 def _choose_windows_directory(initial_directory, files=False):

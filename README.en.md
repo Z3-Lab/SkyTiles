@@ -8,16 +8,17 @@
 
 <p align="center"><a href="README.md">简体中文</a> · <strong>English</strong></p>
 
-<p align="center">
-  <strong><a href="https://github.com/Z3-Lab/SkyTiles/releases/latest/download/SkyTiles.exe">Download SkyTiles.exe</a></strong>
-  · <a href="https://github.com/Z3-Lab/SkyTiles/releases/latest">View the latest release</a>
-  <br>
-  Windows 10/11 · 64-bit
-</p>
+<p align="center"><strong><a href="https://github.com/Z3-Lab/SkyTiles/releases/latest">Download the latest release</a></strong></p>
+
+| Platform | Download | Open |
+| --- | --- | --- |
+| Windows 10/11 · 64-bit | [SkyTiles.exe](https://github.com/Z3-Lab/SkyTiles/releases/latest/download/SkyTiles.exe) | Double-click the EXE |
+| macOS · Apple silicon / Intel | [Apple silicon ZIP](https://github.com/Z3-Lab/SkyTiles/releases/latest/download/SkyTiles-macos-arm64.zip) · [Intel ZIP](https://github.com/Z3-Lab/SkyTiles/releases/latest/download/SkyTiles-macos-x86_64.zip) | Unzip and open SkyTiles.app |
+| Linux · x86-64 | [Linux archive](https://github.com/Z3-Lab/SkyTiles/releases/latest/download/SkyTiles-linux-x86_64.tar.gz) | Extract and run ./SkyTiles |
 
 ## Get started
 
-Double-click the downloaded `SkyTiles.exe` to open SkyTiles in your default browser. Choose **Import Photos** to select photos or a folder.
+SkyTiles opens in your default browser. Choose **Import Photos** to select photos or a folder.
 
 - **Explore by location** · Read EXIF coordinates and view shooting locations and original photos on the globe.
 - **Manage photos locally** · Search and filter photos, including those without GPS. SkyTiles makes an index and thumbnails while leaving originals in place.

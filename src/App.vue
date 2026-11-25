@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { version } from '../package.json'
 import { api, message } from './api'
 import type { Config, LibraryInfo, Photo, PhotoReference, Stats } from './types'
 import { photoTime } from './types'
@@ -223,7 +224,7 @@ onUnmounted(() => {
   <div v-if="stopped" class="stopped">
     <div class="brand-mark">S</div>
     <h1>SkyTiles 已退出</h1>
-    <p>数据已保留。下次双击 SkyTiles.exe 即可继续浏览。</p>
+    <p>数据已保留。下次打开司图即可继续浏览。</p>
   </div>
   <div v-else class="workspace">
     <header class="topbar">
@@ -397,7 +398,7 @@ onUnmounted(() => {
     <footer class="statusbar">
       <span>SQLite · 本地存储</span>
       <span :title="config.dataDir">{{ config.dataDir || '正在连接本地服务…' }}</span>
-      <span>SkyTiles 0.1</span>
+      <span>SkyTiles {{ version }}</span>
     </footer>
     <ImportDialog
       v-if="importOpen"

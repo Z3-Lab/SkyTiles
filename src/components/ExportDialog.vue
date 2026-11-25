@@ -146,7 +146,7 @@ onUnmounted(() => {
               id="export-destination"
               v-model="destination"
               :disabled="busy"
-              placeholder="目标文件夹的完整路径，例如 D:\影像导出"
+              placeholder="目标文件夹的完整路径"
             />
             <button class="secondary" :disabled="busy" @click="chooseFolder">
               {{ picking ? '请查看文件夹选择窗口…' : '选择文件夹' }}

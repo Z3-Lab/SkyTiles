@@ -1,4 +1,4 @@
-"""Local desktop entry point, shared by source runs and the Windows executable."""
+"""Local desktop entry point shared by source runs and packaged apps."""
 import argparse
 import hashlib
 from http.client import HTTPConnection
@@ -6,7 +6,9 @@ import json
 import logging
 from logging.handlers import RotatingFileHandler
 import os
+import shutil
 import socket
+import subprocess
 import sys
 import threading
 import time
@@ -16,6 +18,30 @@ import uvicorn
 
 from backend.app import create_app
 from backend.config import Settings
+
+
+def open_browser(url):
+    if sys.platform.startswith("linux"):
+        env = os.environ.copy()
+        if getattr(sys, "frozen", False):
+            # The system browser needs its own libraries, not PyInstaller’s.
+            original = env.get("LD_LIBRARY_PATH_ORIG")
+            if original is None:
+                env.pop("LD_LIBRARY_PATH", None)
+            else:
+                env["LD_LIBRARY_PATH"] = original
+        opener = shutil.which("xdg-open")
+        command = [opener] if opener else [shutil.which("gio"), "open"]
+        if command[0]:
+            try:
+                subprocess.Popen([*command, url], env=env, stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL, start_new_session=True)
+                return
+            except OSError:
+                logging.getLogger("launcher").exception("Could not open the system browser")
+        print(f"Open SkyTiles at {url}", flush=True)
+        return
+    webbrowser.open(url)
 
 
 def acquire_lock(path):
@@ -40,11 +66,18 @@ def acquire_lock(path):
 
 def main():
     parser = argparse.ArgumentParser(description="SkyTiles local photo library")
-    parser.add_argument("--data-dir", help="Persistent data directory; defaults to data beside the executable")
+    parser.add_argument("--data-dir", help="Override the default persistent data directory")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--dev", action="store_true")
+    parser.add_argument("--picker", choices=("files", "folder"), help=argparse.SUPPRESS)
+    parser.add_argument("--initial-directory", help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if args.picker:
+        from backend.dialogs import linux_picker
+
+        print(json.dumps(linux_picker(args.initial_directory, args.picker == "files")))
+        return 0
     settings = Settings.discover(args.data_dir, args.dev)
     settings.prepare()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s",
@@ -69,7 +102,7 @@ def main():
                     connection.close()
                 if healthy.get("app") == "SkyTiles" and healthy.get("library") == expected:
                     if not args.no_browser:
-                        webbrowser.open("http://127.0.0.1:5173" if args.dev else url)
+                        open_browser("http://127.0.0.1:5173" if args.dev else url)
                     return 0
                 last_error = ValueError("服务的影像库标识与当前目录不一致")
             except (OSError, ValueError, KeyError) as error:
@@ -81,7 +114,7 @@ def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         if not args.dev and not (settings.web_dir / "index.html").is_file():
-            raise RuntimeError("找不到界面文件，请先执行 npm run build，或使用完整的 SkyTiles.exe。")
+            raise RuntimeError("找不到界面文件，请先执行 npm run build，或从 Releases 下载当前系统的司图发布包。")
         try:
             sock.bind(("127.0.0.1", args.port))
         except OSError:
@@ -100,7 +133,7 @@ def main():
         def open_when_ready():
             for _ in range(600):
                 if server.started:
-                    webbrowser.open(url)
+                    open_browser(url)
                     return
                 if server.should_exit:
                     return

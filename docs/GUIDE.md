@@ -1,24 +1,31 @@
 # 司图使用手册与开发说明
 
-本地无人机航测影像管理与三维浏览工具。Vue 3 + TypeScript + Cesium 前端，Python FastAPI 本地服务，SQLite 持久存储。支持照片可视化导入、旧版 JSON 索引迁移和 Windows 单文件 EXE。
+本地无人机航测影像管理与三维浏览工具。Vue 3 + TypeScript + Cesium 前端，Python FastAPI 本地服务，SQLite 持久存储。支持照片可视化导入、旧版 JSON 索引迁移，并提供 Windows、macOS 和 Linux 发布包。
 
-## 下载并运行（Windows 10/11，64 位）
+## 下载并运行
 
-**[下载 SkyTiles.exe](https://github.com/Z3-Lab/SkyTiles/releases/latest/download/SkyTiles.exe)** · [查看最新发布](https://github.com/Z3-Lab/SkyTiles/releases/latest)
+从 [GitHub Releases](https://github.com/Z3-Lab/SkyTiles/releases/latest) 下载对应系统的版本。
 
-1. 将下载的 `SkyTiles.exe` 放在有写入权限的目录中。
-2. 双击运行，程序会启动本地服务并打开默认浏览器，无需安装 Node.js 或 Python。
-3. 点击右上角「导入影像」，通过系统窗口选择本机照片或文件夹，也可填写原图文件夹的完整路径。只建立路径索引，不复制原图。
-4. 点击点位或照片列表查看原图，点击定位按钮在地图中定位。
-5. 使用界面右上角「退出」停止服务。单纯关闭浏览器标签不会停止服务；再次双击 EXE 会重新打开已有实例。
+- **Windows 10/11（64 位）** · 将 SkyTiles.exe 放到可写文件夹并双击。
+- **macOS** · 根据 Mac 的芯片选择 Apple 芯片包（arm64）或 Intel 包（x86_64），解压后打开 SkyTiles.app。两个包的构建环境均为 macOS 15。当前包尚未通过 Apple 公证。若系统阻止打开，请先核对下载来源与 Release 中的 SHA-256。Apple 说明见 [在 Mac 上安全地打开应用](https://support.apple.com/zh-cn/102445)。
+- **Linux（x86-64）** · 解压后在 SkyTiles 目录运行 ./SkyTiles。构建环境为 Ubuntu 22.04。运行需要桌面环境和浏览器。文件选择窗口使用 X11 或 XWayland，也可以手动填写文件夹的完整路径。
+
+程序会在默认浏览器打开。点击「导入影像」选择照片或文件夹。关闭浏览器标签页后服务仍在运行，使用司图界面的「退出」停止服务。
 
 默认地址为 `http://127.0.0.1:8765`；端口被占用时自动选择空闲端口。服务仅监听本机。每个影像库只能由一个程序实例打开。
 
-程序会在 EXE **旁边**创建 `data/`，不会把用户数据写入 EXE 解压临时目录：
+### 影像库位置
+
+| 系统 | 默认数据目录 |
+| --- | --- |
+| Windows | SkyTiles.exe 旁边的 data/ |
+| macOS | ~/Library/Application Support/SkyTiles |
+| Linux | $XDG_DATA_HOME/skytiles，默认 ~/.local/share/skytiles |
+
+各系统的数据目录结构相同：
 
 ```text
-SkyTiles.exe
-data/
+数据目录/
   skytiles.sqlite3       照片元数据、导入与导出记录、处理提示
   config.json            可选的 Cesium Token
   media/                 兼容旧版原图副本；新版导入不再写入
@@ -27,7 +34,7 @@ data/
   logs/                  本地运行日志
 ```
 
-**升级时只替换 EXE，保留整个 `data/`。移动程序时一起移动 `data/`。备份前先从界面退出程序，再复制整个 `data/`。不要只复制正在运行中的 SQLite 主文件，WAL 中可能还有未合并的数据。**
+**升级前先退出司图，再替换应用并保留整个数据目录。Windows 上移动 EXE 时要一起移动旁边的数据目录。备份前退出程序，再复制整个目录。** 单独复制正在运行的 SQLite 主文件可能遗漏尚未归并的写入记录。
 
 **原图留在原位置，预览与批量导出直接读取原路径。索引及缩略图不等于原图备份，请另行备份原图目录；原图移动、删除或移动硬盘离线时，原图预览和导出将不可用。重新选择新目录导入可更新索引路径。**
 
@@ -59,7 +66,7 @@ data/
 1. 在地图上点击「框选影像」，按住鼠标左键拖出矩形。选中的照片点位会高亮为黄色，并显示选中数量。
 2. 普通框选替换当前选择；按住 **Shift** 拖动可追加选择。**Esc** 取消正在进行的框选。「清除选择」取消全部已选照片。
 3. 在地图中右键，选择「批量导出所选」，也可点击地图顶部「导出所选」。
-4. 点击「选择文件夹」打开 Windows 文件夹窗口，或填写目标位置的完整路径；输入新文件夹名称，然后点击「复制到新文件夹」。
+4. 点击「选择文件夹」打开 文件夹选择窗口，或填写目标位置的完整路径；输入新文件夹名称，然后点击「复制到新文件夹」。
 
 导出会在目标位置创建独立的新文件夹，按照片原有的相对目录复制原图，保留原始内容和 EXIF，不移动来源文件。同名文件夹、同名文件自动编号，不覆盖已有导出；不允许导出到影像库 `data/` 内。完成后显示实际保存位置、复制成功、原图缺失和失败数量。目标文件夹中的 `导出报告.json` 记录每张照片的结果。
 
@@ -87,7 +94,7 @@ data/
 
 ## 开发环境
 
-要求：Windows、Python 3.12+、Node.js `^20.19.0 || >=22.12.0`。
+需要 Python 3.12+ 和 Node.js `^20.19.0 || >=22.12.0`。以下命令以 Windows 为例。macOS 或 Linux 请用 python3 创建虚拟环境，将 .\.venv\Scripts\python.exe 换成 .venv/bin/python。Linux 源码运行的文件选择窗口需要 Python 的 Tkinter 模块。
 
 ```powershell
 python -m venv .venv

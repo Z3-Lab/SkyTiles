@@ -1,11 +1,13 @@
-"""Exercise the actual EXE in a Chinese path, with Python and Node absent from PATH."""
+"""Exercise the distributed desktop package from a temporary Chinese path."""
 import hashlib
 import json
 import os
+import platform
 from pathlib import Path
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import time
 
@@ -34,8 +36,32 @@ def main():
     with tempfile.TemporaryDirectory(prefix="EXE中文验证-", dir=ROOT / ".test-output") as temporary:
         folder = Path(temporary).resolve()
         assert folder.is_relative_to((ROOT / ".test-output").resolve())
-        executable = folder / "SkyTiles.exe"
-        shutil.copyfile(ROOT / "release" / "SkyTiles.exe", executable)
+        release = ROOT / "release"
+        env = dict(os.environ)
+        for name in ("PYTHONHOME", "PYTHONPATH", "SKYTILES_DATA_DIR", "SKYTILES_CESIUM_TOKEN"):
+            env.pop(name, None)
+        flags = 0
+        if sys.platform == "win32":
+            executable = folder / "SkyTiles.exe"
+            shutil.copyfile(release / "SkyTiles.exe", executable)
+            data = folder / "data"
+            system_root = env.get("SystemRoot", env.get("SYSTEMROOT", r"C:Windows"))
+            env["PATH"] = os.pathsep.join([str(Path(system_root) / "System32"), system_root])
+            flags = subprocess.CREATE_NO_WINDOW
+        elif sys.platform == "darwin":
+            artifact = release / f"SkyTiles-macos-{platform.machine()}.zip"
+            subprocess.run(["/usr/bin/ditto", "-x", "-k", str(artifact), str(folder)], check=True)
+            executable = folder / "SkyTiles.app/Contents/MacOS/SkyTiles"
+            env.update(HOME=str(folder), PATH="")
+            data = folder / "Library/Application Support/SkyTiles"
+        else:
+            artifact = release / f"SkyTiles-linux-{platform.machine()}.tar.gz"
+            with tarfile.open(artifact) as archive:
+                archive.extractall(folder, filter="data")
+            executable = folder / "SkyTiles/SkyTiles"
+            env.update(XDG_DATA_HOME=str(folder / "xdg"), PATH="")
+            data = folder / "xdg/skytiles"
+        version = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))["version"]
         old = folder / "旧版影像" / "public"
         (old / "imgs" / "批次一").mkdir(parents=True)
         original = image_bytes(gps=True)
@@ -47,22 +73,17 @@ def main():
              "altitude": 210, "capturedAt": None},
         ]
         index = json.dumps({"version": 1, "items": items}, ensure_ascii=False).encode("utf-8")
-        env = dict(os.environ)
-        for name in ("PYTHONHOME", "PYTHONPATH", "SKYTILES_DATA_DIR", "SKYTILES_CESIUM_TOKEN"):
-            env.pop(name, None)
-        system_root = env.get("SystemRoot", env.get("SYSTEMROOT", "C:\\Windows"))
-        env["PATH"] = os.pathsep.join([str(Path(system_root) / "System32"), system_root])
         process = None
         client = None
 
         def start():
             nonlocal process, client
             process = subprocess.Popen([str(executable), "--no-browser", "--port", "0"],
-                cwd=ROOT, env=env, creationflags=subprocess.CREATE_NO_WINDOW)
-            info = folder / "data" / "service.json"
+                cwd=ROOT, env=env, creationflags=flags)
+            info = data / "service.json"
             for _ in range(600):
                 if process.poll() is not None:
-                    log = folder / "data" / "logs" / "skytiles.log"
+                    log = data / "logs" / "skytiles.log"
                     raise AssertionError(f"EXE exited {process.returncode}: {log.read_text(encoding='utf-8') if log.exists() else 'no log'}")
                 try:
                     port = json.loads(info.read_text(encoding="utf-8"))["port"]
@@ -89,7 +110,8 @@ def main():
             assert client.get("/").status_code == 200
             assert "SkyTiles" in client.get("/").text
             assert client.get("/cesium/Cesium.js").status_code == 200
-            assert Path(client.get("/api/config").json()["dataDir"]) == folder / "data"
+            assert Path(client.get("/api/config").json()["dataDir"]) == data
+            assert client.get("/api/health").json()["version"] == version
             source = folder / '本机原图'
             (source / '批次一').mkdir(parents=True)
             (source / '批次一/航拍.jpg').write_bytes(original)
@@ -97,8 +119,8 @@ def main():
             response = client.post('/api/imports/local', json={'root': str(source)})
             assert response.status_code == 202, response.text
             assert wait_job(client, response.json()['id'])['imported'] == 2
-            assert not any((folder / 'data/media').iterdir())
-            assert not any((folder / 'data/staging').iterdir())
+            assert not any((data / 'media').iterdir())
+            assert not any((data / 'staging').iterdir())
 
             def migrate():
                 response = client.post("/api/imports/legacy", files={"file": ("index.json", index, "application/json")},
@@ -120,7 +142,7 @@ def main():
             assert len(client.get(photo['thumbUrl']).content) <= 4096
             assert client.get(photo['thumbUrl']).headers['content-type'] == 'image/webp'
             assert Path(photo['sourcePath']) == old / 'imgs/批次一/航拍.jpg'
-            assert not any((folder / 'data/media').iterdir())
+            assert not any((data / 'media').iterdir())
             assert client.get("/api/map").json()["total"] == 2
             x, y, z = cartesian(photo['latitude'], photo['longitude'], photo['altitude'])
             camera = cartesian(photo['latitude'], photo['longitude'], photo['altitude'] + 500)
@@ -156,9 +178,9 @@ def main():
             assert client.get("/api/config").json()["cesiumToken"] == "test-persistence"
             assert client.get('/api/exports/' + export_id).json()['copied'] == 2
             second = subprocess.run([str(executable), "--no-browser"], cwd=ROOT, env=env,
-                                    creationflags=subprocess.CREATE_NO_WINDOW, timeout=30)
+                                    creationflags=flags, timeout=30)
             assert second.returncode == 0, (second.returncode,
-                (folder / "data" / "logs" / "skytiles.log").read_text(encoding="utf-8"))
+                (data / "logs" / "skytiles.log").read_text(encoding="utf-8"))
             assert client.get("/api/health").json()["app"] == "SkyTiles"
             photo = client.get("/api/photos?q=航拍").json()["items"][0]
             response = client.delete(f"/api/photos/{photo['id']}", params={"version": photo["version"]})
@@ -174,14 +196,14 @@ def main():
             assert client.get("/api/config").json()["cesiumToken"] == "test-persistence"
             assert (old / "imgs" / "批次一" / "航拍.jpg").is_file()
             for name in ("media", "thumbs", "staging"):
-                assert not any(path.is_file() for path in (folder / "data" / name).rglob("*"))
+                assert not any(path.is_file() for path in (data / name).rglob("*"))
             stop()
             start()
             assert client.get("/api/stats").json()["total"] == 0
             assert client.get("/api/config").json()["cesiumToken"] == "test-persistence"
             stop()
-            print(json.dumps({"result": "PASS", "exeSizeMB": round(executable.stat().st_size / 1024 / 1024, 1),
-                "checks": ["standalone runtime", "Chinese paths", "data beside EXE independent of cwd",
+            print(json.dumps({"result": "PASS", "platform": sys.platform,
+                "checks": ["standalone runtime", "Chinese paths", "platform data directory independent of cwd",
                     "bundled frontend and Cesium", "index-only local import and EXIF", "legacy index-only migration", "repeat deduplication",
                     "missing-file repair", "media and thumbnails", "restart persistence", "single instance",
                     "single photo removal", "clear library preserving settings and sources",
@@ -200,8 +222,12 @@ def main():
                 try:
                     process.wait(timeout=10)
                 except subprocess.TimeoutExpired:
-                    subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
-                                   creationflags=subprocess.CREATE_NO_WINDOW, capture_output=True)
+                    if sys.platform == "win32":
+                        subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                                       creationflags=flags, capture_output=True)
+                    else:
+                        process.kill()
+                        process.wait(timeout=10)
             if client:
                 client.close()
 

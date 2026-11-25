@@ -1,0 +1,139 @@
+name: Publish desktop release
+
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/release-desktop.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    name: Build ${{ matrix.asset }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            asset: SkyTiles.exe
+          - runner: macos-15
+            asset: SkyTiles-macos-arm64.zip
+          - runner: macos-15-intel
+            asset: SkyTiles-macos-x86_64.zip
+          - runner: ubuntu-22.04
+            asset: SkyTiles-linux-x86_64.tar.gz
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: python -m pip install -r requirements-dev.lock.txt
+      - name: Run backend tests
+        run: python -m unittest discover -s tests -v
+      - name: Build the desktop package
+        run: python scripts/package_desktop.py
+      - name: Run packaged application smoke test
+        run: python tests/smoke_exe.py
+      - name: Compile macOS picker scripts
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          python - <<'PY'
+          import subprocess
+          from pathlib import Path
+          from tempfile import TemporaryDirectory
+          from backend.dialogs import _macos_picker_script
+
+          with TemporaryDirectory() as directory:
+              root = Path(directory)
+              for files in (False, True):
+                  source = root / "picker.applescript"
+                  source.write_text(_macos_picker_script(files), encoding='utf-8')
+                  subprocess.run(["/usr/bin/osacompile", "-o", str(root / "picker.scpt"), str(source)], check=True)
+          PY
+      - name: Check the bundled Linux picker on a virtual display
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q xvfb xdotool
+          temporary=$(mktemp -d)
+          tar -xzf release/SkyTiles-linux-x86_64.tar.gz -C "$temporary"
+          cd "$temporary/SkyTiles"
+          timeout 40s xvfb-run -a bash -e -c '
+            ./SkyTiles --picker folder --initial-directory "$PWD" > picker.json &
+            picker=$!
+            window=$(xdotool search --sync --onlyvisible --name "SkyTiles" | head -n 1)
+            xdotool windowfocus --sync "$window"
+            xdotool key Escape
+            wait "$picker"
+            test "$(cat picker.json)" = null
+          '
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: release/${{ matrix.asset }}
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+      - name: Publish all packages together
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          tag="v$version"
+          if gh release view "$tag" --json isDraft,assets > existing.json 2>/dev/null; then
+            jq -e '.isDraft == false and ([.assets[].name] | contains(["SkyTiles.exe", "SkyTiles-macos-arm64.zip", "SkyTiles-macos-x86_64.zip", "SkyTiles-linux-x86_64.tar.gz", "SHA256SUMS.txt"]))' existing.json
+            exit 0
+          fi
+          cd release
+          sha256sum SkyTiles.exe SkyTiles-macos-arm64.zip SkyTiles-macos-x86_64.zip SkyTiles-linux-x86_64.tar.gz > SHA256SUMS.txt
+          cat > notes.md <<'NOTES'
+          从 Assets 选择当前系统的附件。Choose the release asset for your system.
+
+          | 系统 / Platform | 下载 / Asset |
+          | --- | --- |
+          | Windows x64 | SkyTiles.exe |
+          | macOS · Apple silicon | SkyTiles-macos-arm64.zip |
+          | macOS · Intel | SkyTiles-macos-x86_64.zip |
+          | Linux x86-64 | SkyTiles-linux-x86_64.tar.gz |
+
+          Windows 双击 EXE。macOS 解压后打开 SkyTiles.app，本版尚未通过 Apple 公证。Linux 解压后运行目录内的 ./SkyTiles。
+
+          Run the EXE on Windows. On macOS, unzip and open SkyTiles.app. This build has not been notarized. On Linux, extract the archive and run ./SkyTiles.
+
+          [使用手册](https://github.com/Z3-Lab/SkyTiles/blob/main/docs/GUIDE.md) · [English guide](https://github.com/Z3-Lab/SkyTiles/blob/main/docs/GUIDE.en.md)
+          NOTES
+          gh release create "$tag" SkyTiles.exe SkyTiles-macos-arm64.zip SkyTiles-macos-x86_64.zip SkyTiles-linux-x86_64.tar.gz SHA256SUMS.txt \
+            --target "$GITHUB_SHA" --title "SkyTiles · 司图 $tag" --notes-file notes.md --latest

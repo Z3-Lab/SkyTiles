@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from .config import Settings
+from .config import APP_VERSION, Settings
 from .database import Database, photo_json, photo_version, read_config
 from .exports import ExportService
 from .dialogs import choose_directory
@@ -77,7 +77,7 @@ def create_app(settings: Settings | None = None):
             app.state.exports.close()
             app.state.imports.close()
 
-    app = FastAPI(title="SkyTiles", version="0.1.0", lifespan=lifespan,
+    app = FastAPI(title="SkyTiles", version=APP_VERSION, lifespan=lifespan,
                   docs_url="/api/docs" if settings.dev else None, redoc_url=None)
     app.state.database = database
     app.state.settings = settings
@@ -108,7 +108,7 @@ def create_app(settings: Settings | None = None):
 
     @app.get("/api/health")
     def health():
-        return {"app": "SkyTiles", "version": "0.1.0",
+        return {"app": "SkyTiles", "version": APP_VERSION,
                 "library": hashlib.sha256(str(settings.data_dir).encode()).hexdigest()}
 
     @app.get("/api/config")
@@ -116,7 +116,7 @@ def create_app(settings: Settings | None = None):
         saved = read_config(settings.data_dir)
         return {"cesiumToken": os.environ.get("SKYTILES_CESIUM_TOKEN", saved.get("cesiumToken", "")),
                 "dataDir": str(settings.data_dir), "legacyRoot": str(settings.app_root / "public"),
-                "exportRoot": str(settings.app_root / "exports")}
+                "exportRoot": str(settings.export_dir)}
 
     @app.put("/api/config")
     def save_config(value: MapConfig):

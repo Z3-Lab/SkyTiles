@@ -11,14 +11,14 @@ httpx==0.28.1
 idna==3.20
 opentelemetry-api==1.45.2
 packaging==26.3
-pefile==2024.8.26
+pefile==2024.8.26; sys_platform == "win32"
 pillow==12.3.0
 pydantic==2.14.2
 pydantic_core==2.50.2
 pyinstaller==6.22.3
 pyinstaller-hooks-contrib==2026.9
 python-multipart==0.0.32
-pywin32-ctypes==0.2.3
+pywin32-ctypes==0.2.3; sys_platform == "win32"
 setuptools==84.2.1
 starlette==1.10.0
 typing-inspection==0.4.4

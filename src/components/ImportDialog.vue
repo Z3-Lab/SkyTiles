@@ -211,7 +211,7 @@ onUnmounted(() => {
             <input
               v-model="sourceRoot"
               :disabled="busy"
-              placeholder="例如 D:\航测照片"
+              placeholder="航测照片所在文件夹的完整路径"
               @input="editedRoot"
             />
           </label>
@@ -248,7 +248,7 @@ onUnmounted(() => {
           </label>
           <label class="field-label">
             2. 旧项目或 public 目录（本机路径）
-            <input v-model="root" :disabled="busy" placeholder="例如 D:\航测项目\public" />
+            <input v-model="root" :disabled="busy" placeholder="旧项目目录或 public 文件夹的完整路径" />
           </label>
           <p class="help">
             该目录下应有 imgs 文件夹，可同时包含

@@ -1,31 +1,16 @@
-"""Build a self-contained Windows executable; never include the user's data."""
-import os
-from pathlib import Path
-import shutil
-import subprocess
+"""Keep the Windows batch file and the existing packaging command working."""
 import sys
 
-ROOT = Path(__file__).resolve().parent.parent
+if __package__:
+    from .package_desktop import main as package_desktop
+else:
+    from package_desktop import main as package_desktop
 
 
 def main():
     if sys.platform != "win32":
         raise SystemExit("请在 Windows 上构建 Windows EXE。")
-    npm = shutil.which("npm.cmd")
-    if not npm:
-        raise SystemExit("未找到 npm，请安装 Node.js 并重新打开终端。")
-    subprocess.run([npm, "run", "build"], cwd=ROOT, check=True)
-    build_env = {**os.environ, "PYINSTALLER_CONFIG_DIR": str(ROOT / "build" / "pyinstaller-cache")}
-    subprocess.run([
-        sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--onefile",
-        "--noconsole", "--name", "SkyTiles", "--distpath", str(ROOT / "release"),
-        "--workpath", str(ROOT / "build" / "pyinstaller"), "--specpath", str(ROOT / "build"),
-        "--add-data", f"{ROOT / 'dist'}{os.pathsep}web", "--collect-submodules", "uvicorn",
-        str(ROOT / "launcher.py"),
-    ], cwd=ROOT, check=True, env=build_env)
-    shutil.copyfile(ROOT / "docs" / "GUIDE.md", ROOT / "release" / "使用说明.md")
-    shutil.copyfile(ROOT / "LICENSE", ROOT / "release" / "LICENSE")
-    print(f"EXE: {ROOT / 'release' / 'SkyTiles.exe'}")
+    package_desktop()
 
 
 if __name__ == "__main__":
