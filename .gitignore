@@ -37,3 +37,19 @@ __screenshots__/
 
 # Vite
 *.timestamp-*-*.mjs
+
+# Local application data and build tools
+data/
+.venv/
+.npm-cache/
+.pip-cache/
+build/
+release/
+outputs/
+.test-output/
+__pycache__/
+*.pyc
+.env
+public/imgs/
+public/thumbs/
+public/img-index/

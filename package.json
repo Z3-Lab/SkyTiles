@@ -1,6 +1,6 @@
 {
-  "name": "jinjiehaomap",
-  "version": "0.0.0",
+  "name": "skytiles",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,20 +8,15 @@
     "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
     "build-only": "vite build",
-    "build:image-index": "python3 scripts/build_image_index.py",
-    "build:image-index:node": "node scripts/build-image-index.mjs",
     "type-check": "vue-tsc --build",
     "lint": "run-s lint:*",
-    "lint:oxlint": "oxlint . --fix",
-    "lint:eslint": "eslint . --fix --cache",
+    "lint:oxlint": "oxlint src vite.config.ts",
+    "lint:eslint": "eslint src vite.config.ts",
     "format": "prettier --write --experimental-cli src/"
   },
   "dependencies": {
     "cesium": "^1.139.1",
-    "exifr": "^7.1.3",
-    "pinia": "^3.0.4",
-    "vue": "^3.5.29",
-    "vue-router": "^5.0.3"
+    "vue": "^3.5.29"
   },
   "devDependencies": {
     "@tsconfig/node24": "^24.0.4",
@@ -40,7 +35,6 @@
     "typescript": "~5.9.3",
     "vite": "^7.3.1",
     "vite-plugin-cesium": "^1.2.23",
-    "vite-plugin-vue-devtools": "^8.0.6",
     "vue-tsc": "^3.2.5"
   },
   "engines": {

@@ -1,183 +1,44 @@
 # SkyTiles
 
-<div align="center">
+A local drone-photo library and Cesium globe viewer. Built with Vue 3, TypeScript, FastAPI, SQLite and Pillow; distributed as a standalone Windows executable.
 
-### A lightweight 3D map viewer for UAV photogrammetry images
+See the [Chinese guide](README.md) for complete instructions.
 
-[![Vue](https://img.shields.io/badge/Vue-3-42b883?style=for-the-badge&logo=vue.js&logoColor=white)](https://vuejs.org/)
-[![Vite](https://img.shields.io/badge/Vite-7-646cff?style=for-the-badge&logo=vite&logoColor=white)](https://vite.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Cesium](https://img.shields.io/badge/Cesium-3D%20Map-6cadde?style=for-the-badge)](https://cesium.com/platform/cesiumjs/)
-[![License](https://img.shields.io/badge/License-Apache%202.0-d22128?style=for-the-badge)](./LICENSE)
+## Windows application
 
-English | [简体中文](./README.md)
+Run `release/SkyTiles.exe`. It starts a loopback-only HTTP service and opens your default browser. Import photos or folders through the UI, or migrate an existing `public/img-index/index.json` and its old `public` directory.
 
-</div>
+Photos and metadata are stored in `data/` beside the executable. **When upgrading, replace the EXE and keep the entire data directory. Quit the service before backing it up.** Closing a browser tab does not stop the service; use the Exit button. The service defaults to port 8765 and selects an available port when necessary.
 
----
+Legacy migration preserves coordinates, altitude and timestamps without reparsing EXIF. Originals are copied into managed storage; missing originals remain as metadata and can be repaired by repeating migration with the correct directory. Content hashes prevent duplicate photos.
 
-## Overview
+The bundled basic globe works offline. Configure your Cesium ion token in Settings for online satellite imagery and terrain.
 
-`SkyTiles` is a lightweight web platform that maps EXIF/GPS data from UAV images into a Cesium 3D scene, so you can browse photos by their real capture locations.
+## Development
 
-Good for:
+Requires Windows, Python 3.12+, Node.js `^20.19.0 || >=22.12.0`.
 
-- Spatial verification of photogrammetry image sets
-- Site image review and visual inspection
-- Lightweight 3D geospatial photo presentation
-
-## Key Features
-
-| Feature             | Description                                                     |
-| ------------------- | --------------------------------------------------------------- |
-| Auto indexing       | Scans `public/imgs` and generates `public/img-index/index.json` |
-| EXIF parsing        | Extracts latitude, longitude, altitude, and capture time        |
-| 3D marker rendering | Renders all photo points in Cesium                              |
-| Hover preview       | Shows thumbnail preview when hovering markers                   |
-| Click-to-open       | Opens full image in a modal overlay                             |
-| Incremental build   | Python script supports incremental indexing for large datasets  |
-
-<!--
-## Screenshots
-
-> Add your screenshots here for a cooler GitHub landing page.
-
-```text
-assets/
-├─ cover.png
-├─ map-view.png
-└─ preview-modal.png
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.lock.txt
+npm ci
 ```
 
-Example markdown:
+Run the backend with `.\.venv\Scripts\python.exe launcher.py --dev --no-browser`, then run `npm run dev` in another terminal. Open `http://127.0.0.1:5173`.
 
-```md
-![SkyTiles Cover](./assets/cover.png)
-![Map View](./assets/map-view.png)
-![Photo Preview](./assets/preview-modal.png)
-```
--->
+For a production source run, execute `npm run build`, then `.\.venv\Scripts\python.exe launcher.py`.
 
-## Tech Stack
+## Build and test
 
-- Frontend: `Vue 3` + `TypeScript` + `Vite`
-- 3D Engine: `Cesium`
-- Indexing scripts:
-  - Python: `Pillow`
-  - Node.js: `exifr`
-
-## Quick Start
-
-### 1. Install dependencies
-
-```bash
-npm install
-```
-
-### 2. Prepare image data
-
-Put your photos under:
-
-```text
-public/imgs/
-```
-
-> Images should contain GPS EXIF metadata, otherwise they cannot be placed on the map.
-
-### 3. Build image index
-
-Recommended Python version (thumbnail + incremental indexing):
-
-```bash
-pip install -r requirements.txt
-npm run build:image-index
-```
-
-Optional Node version:
-
-```bash
-npm run build:image-index:node
-```
-
-### 4. Run locally
-
-```bash
-npm run dev
-```
-
-Default local URL is usually `http://localhost:5173`.
-
-## Commands
-
-```bash
-# Development
-npm run dev
-
-# Production build (with type check)
+```powershell
 npm run build
-
-# Frontend-only build
-npm run build-only
-
-# Build image index (Python)
-npm run build:image-index
-
-# Build image index (Node)
-npm run build:image-index:node
-
-# Lint and format
 npm run lint
-npm run format
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+.\.venv\Scripts\python.exe scripts/package_windows.py
 ```
 
-## Project Structure
+PyInstaller bundles the frontend, Cesium assets, backend and Python runtime in `release/SkyTiles.exe`. User data and legacy public images are excluded. Build the Windows executable on Windows.
 
-```text
-SkyTiles/
-├─ public/
-│  ├─ imgs/               # Source UAV images
-│  ├─ thumbs/             # Generated thumbnails
-│  └─ img-index/
-│     └─ index.json       # Generated index
-├─ scripts/
-│  ├─ build_image_index.py
-│  └─ build-image-index.mjs
-├─ src/
-│  ├─ Map.vue             # Map rendering and interactions
-│  └─ ...
-└─ README.en.md
-```
+The library uses paginated lists, viewport-based map queries, grid clustering above 3000 visible locations, on-demand rendering, a bounded import worker and SQLite WAL. This release is designed for local personal use, without multi-user authentication.
 
-## Roadmap / Todo
-
-- [ ] Move Cesium token from code to environment variables (`.env`)
-- [ ] Improve index script error handling and logging (including failure stats)
-- [ ] Standardize project configuration and directory conventions
-- [ ] Add time filtering and route/batch grouping
-- [ ] Add image list and map-linked navigation
-- [ ] Unify UI style (colors, typography, spacing, radius, shadow)
-- [ ] Add top toolbar and info panel for better usability
-- [ ] Improve image preview modal (filename, time, coordinate details)
-- [ ] Add loading, empty, and error states
-- [ ] Add marker clustering/layered rendering for large datasets
-- [ ] Add thumbnail lazy loading and caching strategy
-- [ ] Support data export (filtered results and annotation records)
-
-## Contributing
-
-Contributions are welcome via issues and pull requests.
-
-1. Fork the repository
-2. Create a branch: `git checkout -b feat/your-feature`
-3. Commit changes: `git commit -m "feat: add your feature"`
-4. Push and open a PR
-
-## Notes
-
-- Cesium token is currently in `src/Map.vue`; consider moving it to env vars.
-- Images without GPS metadata will not appear on the map.
-- Use the Python indexer for large datasets.
-
-## License
-
-This project is licensed under the [Apache License 2.0](./LICENSE).
+Licensed under [Apache 2.0](LICENSE).
