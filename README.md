@@ -2,9 +2,11 @@
 
 本地无人机航测影像管理与三维浏览工具。Vue 3 + TypeScript + Cesium 前端，Python FastAPI 本地服务，SQLite 持久存储。支持照片可视化导入、旧版 JSON 索引迁移和 Windows 单文件 EXE。
 
-## 使用 Windows EXE
+## 下载并运行（Windows 10/11，64 位）
 
-1. 将 `release/SkyTiles.exe` 放在有写入权限的普通目录中。
+**[下载 SkyTiles.exe](https://github.com/Z3-Lab/SkyTiles/releases/latest/download/SkyTiles.exe)** · [查看最新发布](https://github.com/Z3-Lab/SkyTiles/releases/latest)
+
+1. 将下载的 `SkyTiles.exe` 放在有写入权限的目录中。
 2. 双击运行，程序会启动本地服务并打开默认浏览器，无需安装 Node.js 或 Python。
 3. 点击右上角「导入影像」，通过系统窗口选择本机照片或文件夹，也可填写原图文件夹的完整路径。只建立路径索引，不复制原图。
 4. 点击点位或照片列表查看原图，点击定位按钮在地图中定位。
@@ -114,24 +116,12 @@ npm run build
 .\.venv\Scripts\python.exe launcher.py
 ```
 
-## 打包 EXE
-
-安装上述开发依赖后，双击 `打包EXE.bat`，或执行：
-
-```powershell
-.\.venv\Scripts\python.exe scripts/package_windows.py
-```
-
-脚本先运行前端类型检查与构建，再通过 PyInstaller 在 `release/SkyTiles.exe` 生成 Windows 单文件程序。前端、Cesium 静态资源、Python 运行时和后端依赖均内嵌；`data/` 和旧版 `public/` 中的用户影像不会被打包。必须在 Windows 上构建 Windows EXE。
-
 ## 检查
 
 ```powershell
 npm run build
 npm run lint
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
-# 构建 EXE 后，可进一步验证真实可执行文件
-.\.venv\Scripts\python.exe tests/smoke_exe.py
 ```
 
 后端测试覆盖 EXIF、无 GPS、损坏图片、内容去重、旧 JSON 两种格式、缺图补齐、坐标/路径验证、分页、地图聚合和中断任务恢复。
@@ -154,7 +144,6 @@ src/
   api.ts                 API 客户端与本机路径选择
   types.ts               前端数据类型
 launcher.py              源码与 EXE 共用启动入口
-scripts/package_windows.py
 tests/test_app.py
 ```
 
